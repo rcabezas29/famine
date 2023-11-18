@@ -6,20 +6,26 @@
         #define ElfW(type) Elf32_ ## type
 #endif
 
-void read_elf_header(const char* elfFile)
+void	read_elf_file(FILE *elf_file, ElfW(Ehdr) *header)
 {
-	ElfW(Ehdr) header;
-	FILE* file;
+	char	ptr[100];
+	printf("%s\n", header->e_ident);
+	printf("%lu\n", header->e_entry);
+	while(fgets(ptr, 100, elf_file)) {
+		printf("%s", ptr);
+	}
+}
+
+void	read_elf_header(const char* elfFile)
+{
+	ElfW(Ehdr)	header;
+	FILE		*file;
 
 	if ((file = fopen(elfFile, "rb")))
 	{
 		fread(&header, sizeof(header), 1, file);
-
 		if (memcmp(header.e_ident, ELFMAG, SELFMAG) == 0)
-			printf("Valid ELF file: %s\n", elfFile);
-		else
-			printf("Invalid ELF file: %s\n", elfFile);
-
+			read_elf_file(file, &header);
 		fclose(file);
 	}
 }
