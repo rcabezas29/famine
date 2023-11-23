@@ -4,7 +4,9 @@ RUN apt update && apt upgrade -y
 
 RUN apt install -y gcc make git
 
-RUN apt install -y file readelf xxd
+RUN apt install -y nasm
+
+RUN apt install -y file xxd binwalk binutils
 
 RUN mkdir /home/famine
 

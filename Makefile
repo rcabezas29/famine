@@ -14,11 +14,22 @@ MKDIR = mkdir -p
 RM = rm -rf
 
 # **************************************************************************** #
+#                                   LINKER                                     #
+# **************************************************************************** #
+
+LD = ld
+
+# **************************************************************************** #
 #                                   COMPILER                                   #
 # **************************************************************************** #
 
-CC = gcc
-CFLAGS = -Wall -Wextra -Werror -Wpedantic -Wshadow
+NASM = nasm
+
+# **************************************************************************** #
+#                                    FLAGS                                     #
+# **************************************************************************** #
+
+FLAGS = -f elf64 -g
 
 # **************************************************************************** #
 #                                   SOURCES                                    #
@@ -29,26 +40,17 @@ SRC_DIR := srcs
 INC_DIR := includes
 LIB_DIR := lib
 
-SRCS := $(shell find $(SRC_DIR) -name '*.c')
-OBJS := $(SRCS:%.c=$(BUILD_DIR)/%.o)
-DEPS := $(OBJS:%.o=%.d)
-
-# **************************************************************************** #
-#                                    FLAGS                                     #
-# **************************************************************************** #
-
-CFLAGS += -I./$(INC_DIR)
+SRCS := $(SRC_DIR)/famine.s
+OBJS := $(SRCS:%.s=$(BUILD_DIR)/%.o)
 
 all: $(NAME)
 
-$(NAME): $(OBJS) $(LDLIBS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
+$(NAME): $(OBJS)
+	$(LD) -o $@ $(OBJS)
 
-sanitize:: CFLAGS += -g3 -fsanitize=address
-
-$(BUILD_DIR)/%.o: %.c
+$(BUILD_DIR)/%.o: %.s
 	mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(NASM) $(FLAGS) -o $@ $<
 
 clean:
 	$(RM) $(OBJS)
@@ -57,7 +59,5 @@ fclean: clean
 	$(RM) $(BUILD_DIR)
 
 re:: fclean all
-
--include $(DEPS)
 
 .PHONY: all sanitize thread clean fclean re
