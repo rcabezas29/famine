@@ -9,10 +9,14 @@ void	read_elf_file(FILE *elf_file, uint16_t n_pheaders, uint16_t pheader_size)
 	while (n_pheaders--)
 	{
 		fread(&prog_header, pheader_size, 1, elf_file);
-		if (prog_header.p_type == PT_NOTE)
+		if (prog_header.p_type == PT_NOTE) {
 			printf("PT_NOTE %u\n", prog_header.p_type);
-		else if (prog_header.p_type == PT_LOAD)
+		}
+		else if (prog_header.p_type == PT_LOAD) {
 			printf("PT_LOAD %u\n", prog_header.p_type);
+		} else {
+			printf("OTHER %u\n", prog_header.p_type);
+		}
 
 	}
 }

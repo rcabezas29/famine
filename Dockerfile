@@ -4,7 +4,7 @@ RUN apt update && apt upgrade -y
 
 RUN apt install -y gcc make git
 
-RUN apt install -y file readelf xxd
+RUN apt install -y file xxd binwalk
 
 RUN mkdir /home/famine
 
