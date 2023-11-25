@@ -65,6 +65,10 @@ _diropen:
 	mov rsi, O_RDONLY
 	mov rax, SYS_OPEN
 	syscall
+
+	test rax, rax
+	js _end  ; end if open fails
+
 	mov [r15 + 16], rax ; saving  /tmp/test open fd for later
 
 _dirent_tmp_test:
@@ -74,11 +78,22 @@ _dirent_tmp_test:
 	mov rax, SYS_GETDENTS64
 	syscall
 
+	xor r10, r10
+	mov r13, rax
+_dirent_loop:
+	movzx r12d, word [r15 + 176 + 16 + r10]
+
 	mov rax, SYS_WRITE
 	mov rdi, 1
-	lea rsi, [r15 + 176 + 16 + 2 + 1]
+	lea rsi, [r15 + 176 + 19 + r10] ; dirent->name
 	mov rdx, 4
 	syscall
+
+	add r10, r12
+	cmp r10, r13
+	jne _dirent_loop
+
+
 
 _close_folder:
 	mov rdi, [r15 + 16]
