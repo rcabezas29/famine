@@ -58,6 +58,9 @@ clean:
 fclean: clean
 	$(RM) $(BUILD_DIR)
 
+x:
+	
+
 re:: fclean all
 
-.PHONY: all sanitize thread clean fclean re
+.PHONY: all clean fclean re
