@@ -4,11 +4,14 @@
 %define SYS_STAT 4
 %define SYS_FSTAT 5
 %define SYS_EXIT 60
+%define SYS_GETDENTS64 217
+
 %define S_IFDIR 0x4000
 %define O_RDONLY 00
 %define S_IFMT 0xf000
-%define FAMINE_STACK_SIZE 5000
 
+%define FAMINE_STACK_SIZE 5000
+%define DIRENT_BUFFSIZE 1024
 
 ; r15 /tmp/test
 ; r15 + 16 /tmp/test fd
@@ -17,7 +20,7 @@
 ;	r15 + 32 + 24 stat.st_mode
 ; 	r15 + 80 stat.st_size
 
-
+; r15 + 176 struct dirent (sizeof dirent 280)
 
 global _start
 
@@ -57,19 +60,31 @@ _is_dir:
 	cmp rdx, rcx
 	jne _end ; if failure, exit
 
+_diropen:
 	mov rdi, r15
 	mov rsi, O_RDONLY
 	mov rax, SYS_OPEN
 	syscall
-	mov [r15 + 16], rax
+	mov [r15 + 16], rax ; saving  /tmp/test open fd for later
 
-	
+_dirent_tmp_test:
+	mov rdi, [r15 + 16]
+	lea rsi, [r15 + 176]
+	mov rdx, DIRENT_BUFFSIZE
+	mov rax, SYS_GETDENTS64
+	syscall
 
+	mov rax, SYS_WRITE
+	mov rdi, 1
+	lea rsi, [r15 + 176 + 16 + 2 + 1]
+	mov rdx, 4
+	syscall
 
-	lea rax, [r15 + 16]
-	mov rdi, [rax]
+_close_folder:
+	mov rdi, [r15 + 16]
 	mov rax, SYS_CLOSE
 	syscall
+	
 
 	jmp _end
 _end:
