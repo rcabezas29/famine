@@ -12,4 +12,4 @@
 
 | 1st arg | 2nd arg| 3rd arg | 4th arg | 5th arg | 6th arg| 
 | -| -| -| -| -| - |
-| ``$rdi``| ``rsi``| ``rdx`` | ``rcx`` | ``r8``| ``r9`` |  
+| ``rdi``| ``rsi``| ``rdx`` | ``rcx`` | ``r8``| ``r9`` |  
