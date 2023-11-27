@@ -29,6 +29,23 @@
 ; 	r15 + 176 + 18 d_type
 ; 	r15 + 176 + 19 d_name
 
+; r15 + 1300 Ehdr64
+; 	🦓 r15 + 1300 = ehdr
+; 	🐴 r15 + 1304 = ehdr.class
+; 	🦄 r15 + 1308 = ehdr.pad
+; 	🦓 r15 + 1324 = ehdr.entry
+; 	🐴 r15 + 1332 = ehdr.phoff
+; 	🦄 r15 + 1354 = ehdr.phentsize
+; 	🦓 r15 + 1356 = ehdr.phnum
+; 	🐴 r15 + 1364 = phdr.type
+; 	🦄 r15 + 1368 = phdr.flags
+; 	🦓 r15 + 1372 = phdr.offset
+; 	🐴 r15 + 1380 = phdr.vaddr
+; 	🦄 r15 + 1388 = phdr.paddr
+; 	🦓 r15 + 1396 = phdr.filesz
+; 	🐴 r15 + 1404 = phdr.memsz
+; 	🦄 r15 + 1412 = phdr.align
+
 global _start
 
 	section .text
@@ -150,6 +167,14 @@ _open_bin:
 	syscall
 
 	mov rdi, rax
+	lea rsi, [r15 + 1300]
+	mov rdx, 64
+	mov rcx, 0
+	mov rax, SYS_PREAD64
+	syscall
+
+	
+
 	mov rax, SYS_CLOSE
 	syscall
 
