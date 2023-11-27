@@ -58,8 +58,14 @@ clean:
 fclean: clean
 	$(RM) $(BUILD_DIR)
 
-x:
-	
+s: $(NAME)
+	strace ./build/famine
+
+g: $(NAME)
+	gdb ./build/famine
+
+run: $(NAME)
+	./build/famine
 
 re:: fclean all
 

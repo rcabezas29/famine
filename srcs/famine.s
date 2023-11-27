@@ -78,6 +78,9 @@ _dirent_tmp_test:
 	mov rax, SYS_GETDENTS64
 	syscall
 
+	cmp rax, 0
+	je _close_folder
+
 	xor r10, r10
 	mov r13, rax
 _dirent_loop:
@@ -89,10 +92,18 @@ _dirent_loop:
 	mov rdx, 4
 	syscall
 
+	mov rax, SYS_WRITE
+	mov rdi, 1
+	mov word [r15 + 4000], 10
+	lea rsi, [r15 + 4000]
+	mov rdx, 1
+	syscall
+
 	add r10, r12
 	cmp r10, r13
 	jne _dirent_loop
 
+	jmp _dirent_tmp_test
 
 
 _close_folder:
