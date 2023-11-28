@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+;#define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -26,7 +26,9 @@ struct linux_dirent64 {
 
 int main(void) {
     Elf64_Ehdr *s;
+    loff_t  pos;
 
+    sizeof(Elf64_Phdr);
     int fd, nread;
     char buf[BUF_SIZE];
     struct linux_dirent64 *d;

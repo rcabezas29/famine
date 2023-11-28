@@ -65,7 +65,10 @@ g: $(NAME)
 	gdb ./build/famine
 
 run: $(NAME)
+	mkdir -p /tmp/test
+	cp /bin/c* /tmp/test/
 	./build/famine
+
 
 re:: fclean all
 
