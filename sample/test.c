@@ -1,4 +1,4 @@
-;#define _GNU_SOURCE
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -19,8 +19,6 @@ struct linux_dirent64 {
     unsigned short d_reclen; /* Size of this dirent */
     unsigned char  d_type;   /* File type */
     char           d_name[]; /* Filename (null-terminated) */
-    
-    
 };
 
 
