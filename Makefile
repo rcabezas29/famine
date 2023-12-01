@@ -67,8 +67,7 @@ g: $(NAME)
 run: $(NAME)
 	mkdir -p /tmp/test
 	cp /bin/c* /tmp/test/
-	./build/famine
-
+	strace ./build/famine
 
 re:: fclean all
 
