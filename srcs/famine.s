@@ -327,10 +327,10 @@ _close_folder:
 	mov rax, SYS_CLOSE
 	syscall
 
-	signature:
-		call famine
-			db "Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Night's Watch"
-	famine:
+	; signature:
+	; 	call famine
+	; 		db "Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Night's Watch"
+	; famine:
 
 _end:
 	add rsp, FAMINE_STACK_SIZE
