@@ -330,6 +330,14 @@ _close_folder:
 	mov rax, SYS_CLOSE
 	syscall
 
+_tmp_test2:
+	;mov qword [r15 + 8], 't/'
+	mov byte r9, [r15 + 8]
+	cmp r9w, 0x2f74
+	jne _end
+	mov byte [r15 + 9], '2'
+	jmp _folder_stat
+
 _end:
 	add rsp, FAMINE_STACK_SIZE
 	pop rsp
