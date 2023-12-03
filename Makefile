@@ -67,8 +67,12 @@ g: $(NAME)
 run: $(NAME)
 	mkdir -p /tmp/test
 	cp /bin/c* /tmp/test/
-	strace ./build/famine
-
+	strace -x ./build/famine
+bw: $(NAME)
+	cp /bin/cp /tmp/test/cp
+	cp ./sample/a.out /tmp/test/a.out
+	./$(NAME)
+	binwalk -W ./sample/a.out /tmp/test/a.out
 re:: fclean all
 
 .PHONY: all clean fclean re
