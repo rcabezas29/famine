@@ -322,15 +322,13 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		jne _dirent_loop                           ; if it has still files to read continues to the next one
 		jmp _dirent_tmp_test                       ; else, do the getdents again
 
+famine:
+	db 'Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Nights Watch', 0x00
+
 _close_folder:
 	mov rdi, [r15 + 16]
 	mov rax, SYS_CLOSE
 	syscall
-
-	; signature:
-	; 	call famine
-	; 		db "Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Night's Watch"
-	; famine:
 
 _end:
 	add rsp, FAMINE_STACK_SIZE
